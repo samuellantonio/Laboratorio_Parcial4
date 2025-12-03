@@ -1,34 +1,44 @@
 {
   "expo": {
-    "name": "BilleteraBase",
-    "slug": "BilleteraBase",
+    "name": "Mi Billetera App",
+    "slug": "billetera-universitaria",
     "version": "1.0.0",
     "orientation": "portrait",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#3498db"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.universidad.billetera"
     },
     "android": {
+      "package": "com.universidad.billetera",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#3498db"
       },
-      "edgeToEdgeEnabled": true
+      "permissions": [
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {
-        "projectId": "8953fcb4-b555-454c-9b2e-05858b083bd1"
+        "projectId": "ef336f20-771c-427d-957b-e03a0bab8eb8"
       }
-    }
+    },
+    "owner": "samuellantonio"
   }
 }
