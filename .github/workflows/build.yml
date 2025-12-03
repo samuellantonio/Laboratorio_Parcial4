@@ -32,4 +32,4 @@ jobs:
         run: eas build --platform android --profile preview --non-interactive --no-wait
 
       - name: ✅ Build triggered
-        run: echo 'Build enviado. Revisa tu dashboard: https://expo.dev/accounts'
+        run: echo 'Build enviado. Revisa tu dashboard en https://expo.dev/accounts'
