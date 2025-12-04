@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Image,
 } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 
@@ -37,7 +38,6 @@ export default function LoginScreen({ navigation }) {
     setIsAuthenticating(true);
     
     try {
-      // Verificar si hay biometría registrada
       const hasEnrolled = await LocalAuthentication.isEnrolledAsync();
       
       if (!hasEnrolled && isBiometricSupported) {
@@ -56,7 +56,6 @@ export default function LoginScreen({ navigation }) {
         return;
       }
 
-      // Intentar autenticación biométrica
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Autentícate para acceder a tu billetera',
         cancelLabel: 'Cancelar',
@@ -94,7 +93,13 @@ export default function LoginScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.logo}>💳</Text>
+        {/* Logo de Mi Billetera */}
+        <Image 
+          source={require('../../assets/Mi_Billetera.png')} 
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        
         <Text style={styles.title}>Mi Billetera Digital</Text>
         <Text style={styles.subtitle}>Universitaria</Text>
         
@@ -143,8 +148,9 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   logo: {
-    fontSize: 80,
-    marginBottom: 20,
+    width: 120,
+    height: 120,
+    marginBottom: 30,
   },
   title: {
     fontSize: 32,

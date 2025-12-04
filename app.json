@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Mi Billetera App",
+    "name": "Mi Billetera",
     "slug": "billetera-universitaria",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,7 +9,7 @@
       "android",
       "web"
     ],
-    "icon": "./assets/icon.png",
+    "icon": "./assets/Mi_Billetera.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-icon.png",
