@@ -9,6 +9,7 @@ import {
   ScrollView,
   Dimensions,
   Image,
+  Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -21,10 +22,12 @@ export default function HomeScreen({ navigation }) {
   const [showStats, setShowStats] = useState(false);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
+  const [displayAmount, setDisplayAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [category, setCategory] = useState('Comida');
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const months = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -53,7 +56,16 @@ export default function HomeScreen({ navigation }) {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEY);
       if (data) {
-        setExpenses(JSON.parse(data));
+        const parsedExpenses = JSON.parse(data);
+        // Asegurar que todos los gastos tengan un campo "month"
+        const expensesWithMonth = parsedExpenses.map(exp => {
+          if (!exp.month && exp.date) {
+            const [year, month] = exp.date.split('-');
+            return { ...exp, month: `${year}-${month}` };
+          }
+          return exp;
+        });
+        setExpenses(expensesWithMonth);
       }
     } catch (error) {
       console.error('Error loading expenses:', error);
@@ -68,6 +80,28 @@ export default function HomeScreen({ navigation }) {
     } catch (error) {
       console.error('Error saving expenses:', error);
       Alert.alert('Error', 'No se pudo guardar el gasto');
+    }
+  };
+
+  const handleAmountChange = (text) => {
+    const cleaned = text.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    let formatted = parts[0];
+    if (parts.length > 1) {
+      formatted = parts[0] + '.' + parts[1].slice(0, 2);
+    }
+    
+    setAmount(formatted);
+    
+    if (formatted) {
+      const num = parseFloat(formatted);
+      if (!isNaN(num)) {
+        setDisplayAmount(`$${num.toFixed(2)}`);
+      } else {
+        setDisplayAmount('');
+      }
+    } else {
+      setDisplayAmount('');
     }
   };
 
@@ -97,6 +131,7 @@ export default function HomeScreen({ navigation }) {
 
     setName('');
     setAmount('');
+    setDisplayAmount('');
     setDate(new Date().toISOString().split('T')[0]);
     setCategory('Comida');
     setShowForm(false);
@@ -121,7 +156,17 @@ export default function HomeScreen({ navigation }) {
   };
 
   const getFilteredExpenses = () => {
-    return expenses.filter(exp => exp.month === selectedMonth);
+    return expenses.filter(exp => {
+      if (exp.month) {
+        return exp.month === selectedMonth;
+      }
+      // Si no tiene month, lo inferimos de la fecha
+      if (exp.date) {
+        const [year, month] = exp.date.split('-');
+        return `${year}-${month}` === selectedMonth;
+      }
+      return false;
+    });
   };
 
   const getTotalExpenses = () => {
@@ -154,8 +199,19 @@ export default function HomeScreen({ navigation }) {
   };
 
   const getMonthName = (monthKey) => {
-    const [year, month] = monthKey.split('-');
-    return `${months[parseInt(month) - 1]} ${year}`;
+    if (!monthKey || typeof monthKey !== 'string') {
+      return 'Mes actual';
+    }
+    const parts = monthKey.split('-');
+    if (parts.length !== 2) {
+      return 'Mes actual';
+    }
+    const [year, month] = parts;
+    const monthIndex = parseInt(month) - 1;
+    if (monthIndex < 0 || monthIndex > 11) {
+      return 'Mes actual';
+    }
+    return `${months[monthIndex]} ${year}`;
   };
 
   const getCategoryIcon = (catName) => {
@@ -166,6 +222,110 @@ export default function HomeScreen({ navigation }) {
   const getCategoryColor = (catName) => {
     const cat = categories.find(c => c.name === catName);
     return cat ? cat.color : '#C7CEEA';
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Sin fecha';
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    const [year, month, day] = parts;
+    return `${day}/${month}/${year}`;
+  };
+
+  const renderCalendar = () => {
+    const selectedDate = new Date(date);
+    const currentYear = selectedDate.getFullYear();
+    const currentMonth = selectedDate.getMonth();
+    
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    const days = [];
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null);
+    }
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(i);
+    }
+
+    const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+    const changeMonth = (increment) => {
+      const newDate = new Date(currentYear, currentMonth + increment, 1);
+      const newDateString = `${newDate.getFullYear()}-${String(newDate.getMonth() + 1).padStart(2, '0')}-01`;
+      setDate(newDateString);
+    };
+
+    const selectDay = (day) => {
+      if (day) {
+        const newDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        setDate(newDate);
+        setShowCalendar(false);
+      }
+    };
+
+    return (
+      <Modal
+        visible={showCalendar}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowCalendar(false)}
+      >
+        <View style={styles.calendarOverlay}>
+          <View style={styles.calendarContainer}>
+            <View style={styles.calendarHeader}>
+              <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.calendarArrow}>
+                <Text style={styles.calendarArrowText}>◀</Text>
+              </TouchableOpacity>
+              <Text style={styles.calendarTitle}>
+                {monthNames[currentMonth]} {currentYear}
+              </Text>
+              <TouchableOpacity onPress={() => changeMonth(1)} style={styles.calendarArrow}>
+                <Text style={styles.calendarArrowText}>▶</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.calendarWeekdays}>
+              {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((day, i) => (
+                <Text key={i} style={styles.calendarWeekday}>{day}</Text>
+              ))}
+            </View>
+
+            <View style={styles.calendarDays}>
+              {days.map((day, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.calendarDay,
+                    day === selectedDate.getDate() && styles.calendarDaySelected
+                  ]}
+                  onPress={() => selectDay(day)}
+                  disabled={!day}
+                >
+                  <Text style={[
+                    styles.calendarDayText,
+                    day === selectedDate.getDate() && styles.calendarDayTextSelected,
+                    !day && styles.calendarDayEmpty
+                  ]}>
+                    {day || ''}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={styles.calendarCloseButton}
+              onPress={() => setShowCalendar(false)}
+            >
+              <Text style={styles.calendarCloseText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
   };
 
   const renderStats = () => {
@@ -220,7 +380,17 @@ export default function HomeScreen({ navigation }) {
   };
 
   const renderMonthPicker = () => {
-    const availableMonths = [...new Set(expenses.map(exp => exp.month))].sort().reverse();
+    const availableMonths = [...new Set(expenses.map(exp => {
+      if (exp.month) return exp.month;
+      if (exp.date) {
+        const parts = exp.date.split('-');
+        if (parts.length >= 2) {
+          return `${parts[0]}-${parts[1]}`;
+        }
+      }
+      return null;
+    }).filter(Boolean))].sort().reverse();
+    
     const currentMonth = getCurrentMonth();
     
     if (!availableMonths.includes(currentMonth)) {
@@ -228,40 +398,47 @@ export default function HomeScreen({ navigation }) {
     }
 
     return (
-      <View style={styles.monthPickerOverlay}>
-        <View style={styles.monthPickerContainer}>
-          <Text style={styles.monthPickerTitle}>Selecciona un mes</Text>
-          <ScrollView style={styles.monthList}>
-            {availableMonths.map(month => (
-              <TouchableOpacity
-                key={month}
-                style={[
-                  styles.monthItem,
-                  month === selectedMonth && styles.monthItemActive
-                ]}
-                onPress={() => {
-                  setSelectedMonth(month);
-                  setShowMonthPicker(false);
-                }}
-              >
-                <Text style={[
-                  styles.monthItemText,
-                  month === selectedMonth && styles.monthItemTextActive
-                ]}>
-                  {getMonthName(month)}
-                  {month === currentMonth && ' 🟢'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          <TouchableOpacity
-            style={styles.closePickerButton}
-            onPress={() => setShowMonthPicker(false)}
-          >
-            <Text style={styles.closePickerText}>Cerrar</Text>
-          </TouchableOpacity>
+      <Modal
+        visible={showMonthPicker}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowMonthPicker(false)}
+      >
+        <View style={styles.monthPickerOverlay}>
+          <View style={styles.monthPickerContainer}>
+            <Text style={styles.monthPickerTitle}>Selecciona un mes</Text>
+            <ScrollView style={styles.monthList}>
+              {availableMonths.map(month => (
+                <TouchableOpacity
+                  key={month}
+                  style={[
+                    styles.monthItem,
+                    month === selectedMonth && styles.monthItemActive
+                  ]}
+                  onPress={() => {
+                    setSelectedMonth(month);
+                    setShowMonthPicker(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.monthItemText,
+                    month === selectedMonth && styles.monthItemTextActive
+                  ]}>
+                    {getMonthName(month)}
+                    {month === currentMonth && ' 🟢'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.closePickerButton}
+              onPress={() => setShowMonthPicker(false)}
+            >
+              <Text style={styles.closePickerText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </Modal>
     );
   };
 
@@ -357,22 +534,27 @@ export default function HomeScreen({ navigation }) {
               placeholderTextColor="#95a5a6"
             />
 
-            <TextInput
-              style={styles.input}
-              placeholder="Monto"
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="decimal-pad"
-              placeholderTextColor="#95a5a6"
-            />
+            <View style={styles.amountInputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="0.00"
+                value={amount}
+                onChangeText={handleAmountChange}
+                keyboardType="decimal-pad"
+                placeholderTextColor="#95a5a6"
+              />
+              {displayAmount && (
+                <Text style={styles.amountPreview}>{displayAmount}</Text>
+              )}
+            </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Fecha (YYYY-MM-DD)"
-              value={date}
-              onChangeText={setDate}
-              placeholderTextColor="#95a5a6"
-            />
+            <TouchableOpacity
+              style={styles.datePickerButton}
+              onPress={() => setShowCalendar(true)}
+            >
+              <Text style={styles.datePickerIcon}>📅</Text>
+              <Text style={styles.datePickerText}>{formatDate(date)}</Text>
+            </TouchableOpacity>
 
             <Text style={styles.categoryLabel}>Categoría</Text>
             <ScrollView 
@@ -421,7 +603,6 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
-        {/* Lista de gastos */}
         {getFilteredExpenses().length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>💸</Text>
@@ -445,7 +626,7 @@ export default function HomeScreen({ navigation }) {
                   <Text style={styles.expenseAmount}>${item.amount.toFixed(2)}</Text>
                 </View>
                 <View style={styles.expenseFooter}>
-                  <Text style={styles.expenseDate}>📅 {item.date}</Text>
+                  <Text style={styles.expenseDate}>📅 {formatDate(item.date)}</Text>
                   <TouchableOpacity onPress={() => handleDeleteExpense(item.id)}>
                     <Text style={styles.deleteButton}>🗑️ Eliminar</Text>
                   </TouchableOpacity>
@@ -456,7 +637,8 @@ export default function HomeScreen({ navigation }) {
         )}
       </ScrollView>
 
-      {showMonthPicker && renderMonthPicker()}
+      {renderMonthPicker()}
+      {renderCalendar()}
     </View>
   );
 }
@@ -493,12 +675,8 @@ const styles = StyleSheet.create({
   },
   logoutText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   
-  scrollContainer: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 30,
-  },
+  scrollContainer: { flex: 1 },
+  scrollContent: { paddingBottom: 30 },
   
   monthSelector: { 
     backgroundColor: '#fff', 
@@ -580,6 +758,36 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     color: '#2d3748',
   },
+  amountInputContainer: {
+    position: 'relative',
+  },
+  amountPreview: {
+    position: 'absolute',
+    right: 14,
+    top: 14,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#48bb78',
+  },
+  datePickerButton: {
+    backgroundColor: '#f7fafc',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  datePickerIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: '#2d3748',
+    fontWeight: '600',
+  },
   categoryLabel: { 
     fontSize: 14, 
     fontWeight: '600', 
@@ -610,9 +818,7 @@ const styles = StyleSheet.create({
   saveButton: { backgroundColor: '#667eea' },
   saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
-  expensesList: {
-    paddingHorizontal: 20,
-  },
+  expensesList: { paddingHorizontal: 20 },
   
   emptyState: { 
     alignItems: 'center', 
