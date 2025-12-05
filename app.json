@@ -23,7 +23,7 @@
     "android": {
       "package": "com.universidad.billetera",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/Mi_Billetera.png",
         "backgroundColor": "#3498db"
       },
       "permissions": [
